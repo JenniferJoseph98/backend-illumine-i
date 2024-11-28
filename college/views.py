@@ -33,11 +33,12 @@ class UpdateProfilePicView(APIView):
         
         
 
+#View index page 
 
 def index(request):
     return HttpResponse('Hello World, Have a Good day')
 
-#Add student
+#Add student by Faculty
 class AddStudentView(APIView):
     def post(self, request,facultyId):
         try:
@@ -75,7 +76,7 @@ class AddStudentView(APIView):
 
 
     
-# Faculty Login
+# Faculty Login by facultyId not by id
 class FacultyLoginAPIView(APIView):
     def post(self, request):
         email = request.data.get('email')
@@ -99,7 +100,8 @@ class FacultyLoginAPIView(APIView):
             return Response({"error": "Faculty Not Found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-#Student Login
+#Student Login by studentId not by id
+
 
 class StudentLoginAPIView(APIView):
     def post(self, request):
@@ -122,11 +124,11 @@ class StudentLoginAPIView(APIView):
   
         
 
-# View all students (GET)
+# View all students with limit(GET)
 class ViewStudentView(APIView):
     def get(self, request,skip):
         limit=5
-        students = Student.objects.all()[skip:skip + limit]  # Query all students
+        students = Student.objects.all().order_by('-id')[skip:skip + limit]   # Query to skip & limit the student
         serializer = StudentSerializer(students, many=True)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
@@ -136,7 +138,7 @@ class ViewStudentView(APIView):
 class ViewFacultyView(APIView):
     def get(self, request,skip):
         limit=5
-        faculty = Faculty.objects.all()[skip:skip + limit]  # Query all students
+        faculty = Faculty.objects.all()[skip:skip + limit]    # Query to skip & limit the faculty
         serializer = FacultyWithSubjectsSerializer(faculty, many=True)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
     
@@ -145,7 +147,7 @@ class ViewFacultyView(APIView):
 class ViewStudentById(APIView):
     def get(self, request, student_id=None):
         try:
-            student = Student.objects.get(studentId=student_id)
+            student = Student.objects.get(studentId=student_id)# Query to get a student by their id
         except Student.DoesNotExist:
             raise NotFound(detail="Student not found.")
         serializer = StudentSerializer(student)
@@ -155,14 +157,15 @@ class ViewStudentById(APIView):
 class ViewFacultyById(APIView):
     def get(self, request, facultyId=None):
         try:
-            faculty = Faculty.objects.get(facultyId=facultyId)
+            faculty = Faculty.objects.get(facultyId=facultyId)# Query to get a faculty by their id
         except Faculty.DoesNotExist:
             raise NotFound(detail="Faculty not found.")
         serializer = FacultySerializer(faculty)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
       
   
-#Update student  
+#Update student  by faculty
+
 class UpdateStudentView(APIView):
     def put(self, request):
         try:
@@ -174,26 +177,26 @@ class UpdateStudentView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if faculty_id:
+            if faculty_id: #faculty id present
                 try:
-                    Faculty.objects.get(facultyId=faculty_id)
+                    Faculty.objects.get(facultyId=faculty_id) #get faculty by their id
                     student = Student.objects.get(studentId=student_id)
-                except Faculty.DoesNotExist:
+                except Faculty.DoesNotExist:  #faculty id doesnot present
                     return Response(
                         {"status": "error", "message": "Invalid facultyId. Faculty not found."},
                         status=status.HTTP_404_NOT_FOUND
                     )
-                except Student.DoesNotExist:
+                except Student.DoesNotExist:  # student id doesnt present
                     return Response(
                         {"status": "error", "message": "Invalid updateStudentId. Student not found."},
                         status=status.HTTP_404_NOT_FOUND
                     )
             elif student_id:
                 try:
-                    student = Student.objects.get(studentId=student_id)
+                    student = Student.objects.get(studentId=student_id) #Query to get a student
                     print(student.studentId , student_id)
                     
-                    if str(student.studentId) != str(student_id):
+                    if str(student.studentId) != str(student_id): #this check the student id , because student can change only their details, not other students
                         return Response(
                             {"status": "error", "message": "Students can only update their own data."},
                             status=status.HTTP_403_FORBIDDEN
@@ -251,13 +254,13 @@ class AddSubjectView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            if Subject.objects.filter(faculty=faculty).exists():
+            if Subject.objects.filter(faculty=faculty).exists():  # check the faculty name exist or not, because each faculty can take only one subject
                 return Response(
                     {"status": "error", "message": "This faculty already has a subject assigned."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            subject = Subject.objects.create(name=subject_name, faculty=faculty)
+            subject = Subject.objects.create(name=subject_name, faculty=faculty) #create subject with id of faculty
 
             serializer = SubjectSerializer(subject)
             return Response(
@@ -278,9 +281,9 @@ class AddSubjectView(APIView):
 class SubjectByFacultyView(APIView):
     def get(self, request, faculty_id):
         try:
-            
+            #To get full details of subject like student and faculty , used select_related and prefetch_related to get the connected models data
             subjects = Subject.objects.select_related('faculty').prefetch_related('students').filter(faculty__facultyId=faculty_id)
-            
+            # Used custom serializer to ge all the data
             serializer = CustomSubjectSerializer(subjects, many=True)
             
             return Response(
@@ -314,28 +317,31 @@ class EnrollStudentView(APIView):
                 )
 
             try:
+                #get and check the subject id exist or not
+                
                 subject = Subject.objects.get(subjectId=subject_id)
-            except Subject.DoesNotExist:
+            except Subject.DoesNotExist:  #if not
                 return Response(
                     {"status": "error", "message": "Invalid SubjectId. Subject not found."},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
             try:
+                
                 student = Student.objects.get(studentId=student_id)
-            except Student.DoesNotExist:
+            except Student.DoesNotExist: #if not
                 return Response(
                     {"status": "error", "message": "Invalid StudentId. Student not found."},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            if subject.students.filter(studentId=student_id).exists():
+            if subject.students.filter(studentId=student_id).exists():  #check the student already exist or not
                 return Response(
                     {"status": "error", "message": "Student is already enrolled in this subject."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            subject.students.add(student)
+            subject.students.add(student) #if yes
             return Response(
                 {"status": "success", "message": "Student enrolled successfully in the subject."},
                 status=status.HTTP_200_OK
@@ -364,14 +370,14 @@ class EnrolledSubjectsView(APIView):
                 )
             
             try:
-                student = Student.objects.get(studentId=student_id)
+                student = Student.objects.get(studentId=student_id) #get student id
             except Student.DoesNotExist:
                 return Response(
                     {"status": "error", "message": "Invalid StudentId. Student not found."},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            subjects = Subject.objects.filter(students=student)
+            subjects = Subject.objects.filter(students=student) #filter student from the subject
             serializer = SubjectSerializer(subjects, many=True)
 
             return Response(
@@ -384,7 +390,8 @@ class EnrolledSubjectsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
           
-#Available course
+#Available course for student
+
 
 class AvailableCoursesView(APIView):
     def get(self, request,student_id):
@@ -403,7 +410,7 @@ class AvailableCoursesView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            subjects = Subject.objects.exclude(students=student)
+            subjects = Subject.objects.exclude(students=student) # get all the subject which student not enrollled
             serializer = SubjectSerializer(subjects, many=True)
 
             return Response(
@@ -416,6 +423,7 @@ class AvailableCoursesView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )          
             
+#enrolled by faculty          
                    
 class EnrollStudentInFacultySubject(APIView):
     def post(self, request):
@@ -430,7 +438,7 @@ class EnrollStudentInFacultySubject(APIView):
                 )
 
             try:
-                faculty = Faculty.objects.get(facultyId=faculty_id)
+                faculty = Faculty.objects.get(facultyId=faculty_id) #get  id from faculty id
             except Faculty.DoesNotExist:
                 return Response(
                     {"status": "error", "message": "Invalid facultyId. Faculty not found."},
@@ -438,14 +446,14 @@ class EnrollStudentInFacultySubject(APIView):
                 )
 
             try:
-                student = Student.objects.get(studentId=student_id)
-            except Student.DoesNotExist:
+                student = Student.objects.get(studentId=student_id) #check student already exist 
+            except Student.DoesNotExist: #if no
                 return Response(
                     {"status": "error", "message": "Invalid studentId. Student not found."},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            try:
+            try:  # if yes
                 subject = Subject.objects.get(faculty=faculty)
             except Subject.DoesNotExist:
                 return Response(
@@ -457,9 +465,9 @@ class EnrollStudentInFacultySubject(APIView):
                 return Response(
                     {"status": "error", "message": "Student is already enrolled in this subject."},
                     status=status.HTTP_400_BAD_REQUEST
-                )
+                )  # if yes
 
-            subject.students.add(student)
+            subject.students.add(student) #if no
             return Response(
                 {"status": "success", "message": "Student successfully enrolled in the subject."},
                 status=status.HTTP_200_OK
@@ -492,9 +500,9 @@ class UnenrolledStudent(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            students_not_enrolled = Student.objects.exclude(subjects=subject)
+            students_not_enrolled = Student.objects.exclude(subjects=subject) #get all the student who are all not regsiteres
 
-            student_data = LimitedStudentSerializer(students_not_enrolled, many=True)
+            student_data = LimitedStudentSerializer(students_not_enrolled, many=True) #use Limited serializers to get limited data from student
 
             return Response(
                 {"status": "success", "data": student_data.data},

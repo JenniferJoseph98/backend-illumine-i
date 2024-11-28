@@ -22,6 +22,9 @@ class Faculty(models.Model):
     email=models.CharField(max_length=100,unique=True)
     name = models.CharField(max_length=100)
     contact_number = models.CharField(max_length=10)
+    def save(self, *args, **kwargs):
+        self.email = self.email.lower()  # Convert email to lowercase
+        super(Faculty, self).save(*args, **kwargs)
     def __str__(self):
         return f"{self.facultyId} {self.email} {self.name} {self.contact_number}"
     

@@ -11,8 +11,27 @@ from rest_framework import status
 import os
 
 #upload profile picture
-class UpdateProfilePicView(APIView):
+# class UpdateProfilePicView(APIView):
 
+#     def put(self, request, studentId):
+#         try:
+#             student = Student.objects.get(studentId=studentId)
+#         except Student.DoesNotExist:
+#             return Response({"error": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         profile_pic = request.FILES.get('profile_pic')
+#         if not profile_pic:
+#             return Response({"error": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         student.profile_pic = profile_pic
+#         student.save()
+
+#         return Response({
+#             "message": "Profile picture updated successfully.",
+#             "rl": student.profile_pic.url
+#         }, status=status.HTTP_200_OK)
+        
+class UpdateProfilePicView(APIView):
     def put(self, request, studentId):
         try:
             student = Student.objects.get(studentId=studentId)
@@ -23,15 +42,21 @@ class UpdateProfilePicView(APIView):
         if not profile_pic:
             return Response({"error": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Save the profile picture
         student.profile_pic = profile_pic
         student.save()
 
-        return Response({
-            "message": "Profile picture updated successfully.",
-            "rl": student.profile_pic.url
-        }, status=status.HTTP_200_OK)
-        
-        
+        # Verify if the URL is generated
+        if student.profile_pic and hasattr(student.profile_pic, 'url'):
+            return Response({
+                "message": "Profile picture updated successfully.",
+                "url": student.profile_pic.url
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "error": "Image uploaded but URL not generated. Check Cloudinary settings."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+      
 
 #View index page 
 
